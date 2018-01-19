@@ -1,6 +1,8 @@
 const passport = require('passport');
 const request = require('request');
 const LocalStrategy = require('passport-local').Strategy;
+var JwtStrategy = require('passport-jwt').Strategy;
+var ExtractJwt = require('passport-jwt').ExtractJwt;
 
 const User = require('../models/User');
 
@@ -15,10 +17,15 @@ passport.deserializeUser((id, done) => {
 });
 
 /**
- * Sign in using Email and Password.
+ * JWT Strategy
  */
-passport.use(new LocalStrategy({ usernameField: 'email' }, (email, password, done) => {
-  User.findOne({ email: email.toLowerCase() }, (err, user) => {
+var opts = {};
+opts.jwtFromRequest = ExtractJwt.fromAuthHeaderAsBearerToken();
+opts.secretOrKey = process.env.SESSION_SECRET;
+
+passport.use(new JwtStrategy(opts, function(jwt_payload, done) {
+
+  User.findOne({ email: jwt_payload.email.toLowerCase() }, (err, user) => {
     if (err) { return done(err); }
     if (!user) {
       return done(null, false, { msg: `Email ${email} not found.` });
@@ -37,10 +44,10 @@ passport.use(new LocalStrategy({ usernameField: 'email' }, (email, password, don
  * Login Required middleware.
  */
 exports.isAuthenticated = (req, res, next) => {
-  if (req.isAuthenticated()) {
+  if (passport.authenticate('jwt', { session: false })) {
     return next();
   }
-  res.redirect('/login');
+  return res.json({ status: 401, msg: 'Invalid authentication token.' });
 };
 
 /**

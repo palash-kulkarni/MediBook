@@ -3,48 +3,48 @@ const crypto = bluebird.promisifyAll(require('crypto'));
 const nodemailer = require('nodemailer');
 const passport = require('passport');
 const User = require('../models/User');
-
-/**
- * GET /login
- * Login page.
- */
-exports.getLogin = (req, res) => {
-  if (req.user) {
-    return res.redirect('/');
-  }
-  res.render('account/login', {
-    title: 'Login'
-  });
-};
+const jwt = require('jsonwebtoken');
 
 /**
  * POST /login
  * Sign in using email and password.
  */
 exports.postLogin = (req, res, next) => {
-  req.assert('email', 'Email is not valid').isEmail();
-  req.assert('password', 'Password cannot be blank').notEmpty();
-  req.sanitize('email').normalizeEmail({ gmail_remove_dots: false });
+  req.assert('data.email', 'Email is not valid').isEmail();
+  req.assert('data.password', 'Password cannot be blank').notEmpty();
+  req.sanitize('data.email').normalizeEmail({ gmail_remove_dots: false });
 
   const errors = req.validationErrors();
 
   if (errors) {
-    req.flash('errors', errors);
-    return res.redirect('/login');
+    res.statusCode = 500;
+    return res.json({ status: false, errors: errors.map((error) => error.msg) });
   }
 
-  passport.authenticate('local', (err, user, info) => {
-    if (err) { return next(err); }
-    if (!user) {
-      req.flash('errors', info);
-      return res.redirect('/login');
+  User.findOne({ email: req.body.data.email.toLowerCase() }, (err, user) => {
+    if (err) {
+      res.statusCode = 400;
+      return res.json({ status: false, msg: err });
     }
-    req.logIn(user, (err) => {
-      if (err) { return next(err); }
-      req.flash('success', { msg: 'Success! You are logged in.' });
-      res.redirect(req.session.returnTo || '/');
+
+    if (!user) {
+      res.statusCode = 400;
+      return res.json({ status: false, msg: `Email ${email} not found.` });
+    }
+    user.comparePassword(req.body.data.password, (err, isMatch) => {
+      if (err) { return  }
+      if (isMatch) {
+        var payload = { id: user.id };
+        var jwtToken = jwt.sign(payload, process.env.SESSION_SECRET, {
+                        expiresIn: 10080
+                      });
+        res.statusCode = 200;
+        return res.json({ status: true, msg: 'You have successfully signed-in.', token: 'JWT ' + jwtToken });
+      }
+      res.statusCode = 400;
+      return res.json({ status: false, msg: 'Invalid email or password.' });
     });
-  })(req, res, next);
+  });
 };
 
 /**
@@ -83,7 +83,7 @@ exports.postSignup = (req, res, next) => {
 
   if (errors) {
     res.statusCode = 500;
-    return res.json({ errors: errors.map((error) => error.msg) });
+    return res.json({ status: false, errors: errors.map((error) => error.msg) });
   }
 
   const user = new User({
@@ -97,17 +97,16 @@ exports.postSignup = (req, res, next) => {
     if (existingUser) {
       let errors = [];
       errors.push('User already exists.');
-      return res.json({ errors: errors })
+      return res.json({ status: false, errors: errors })
     }
     user.save((err) => {
       if (err) { return next(err); }
-      req.logIn(user, (err) => {
-        if (err) {
-          return next(err);
-        }
-        res.statusCode = 200;
-        return res.json({ success: 'You have successfully registered.', user: { name: req.user.profile.name, email: req.user.email }});
-      });
+      var payload = { id: user.id };
+      var jwtToken = jwt.sign(payload, process.env.SESSION_SECRET, {
+                      expiresIn: 10080
+                    });
+      res.statusCode = 200;
+      return res.json({ status: true, msg: 'You have successfully registered.', token: 'JWT ' + jwtToken });
     });
   });
 };
