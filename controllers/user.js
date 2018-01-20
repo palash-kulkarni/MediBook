@@ -29,12 +29,12 @@ exports.postLogin = (req, res, next) => {
 
     if (!user) {
       res.statusCode = 400;
-      return res.json({ status: false, msg: `Email ${email} not found.` });
+      return res.json({ status: false, msg: `Email ${req.body.data.email} not found.` });
     }
     user.comparePassword(req.body.data.password, (err, isMatch) => {
       if (err) { return  }
       if (isMatch) {
-        var payload = { id: user.id };
+        var payload = { id: user.id, name: user.profile.name, email: user.email };
         var jwtToken = jwt.sign(payload, process.env.SESSION_SECRET, {
                         expiresIn: 10080
                       });
@@ -101,7 +101,7 @@ exports.postSignup = (req, res, next) => {
     }
     user.save((err) => {
       if (err) { return next(err); }
-      var payload = { id: user.id };
+      var payload = { id: user.id, name: user.profile.name, email: user.email };
       var jwtToken = jwt.sign(payload, process.env.SESSION_SECRET, {
                       expiresIn: 10080
                     });
