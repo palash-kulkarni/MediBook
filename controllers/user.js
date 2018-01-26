@@ -18,18 +18,18 @@ exports.postLogin = (req, res, next) => {
 
   if (errors) {
     res.statusCode = 500;
-    return res.json({ status: false, errors: errors.map((error) => error.msg) });
+    return res.json({ success: false, errors: errors.map((error) => error.msg) });
   }
 
   User.findOne({ email: req.body.data.email.toLowerCase() }, (err, user) => {
     if (err) {
       res.statusCode = 400;
-      return res.json({ status: false, msg: err });
+      return res.json({ success: false, message: err });
     }
 
     if (!user) {
       res.statusCode = 400;
-      return res.json({ status: false, msg: `Email ${req.body.data.email} not found.` });
+      return res.json({ success: false, message: `Email ${req.body.data.email} not found.` });
     }
     user.comparePassword(req.body.data.password, (err, isMatch) => {
       if (err) { return  }
@@ -39,10 +39,10 @@ exports.postLogin = (req, res, next) => {
                         expiresIn: 10080
                       });
         res.statusCode = 200;
-        return res.json({ status: true, msg: 'You have successfully signed-in.', token: 'JWT ' + jwtToken });
+        return res.json({ success: true, message: 'You have successfully signed-in.', data: { token: 'JWT ' + jwtToken } });
       }
       res.statusCode = 400;
-      return res.json({ status: false, msg: 'Invalid email or password.' });
+      return res.json({ success: false, message: 'Invalid email or password.' });
     });
   });
 };
@@ -83,7 +83,7 @@ exports.postSignup = (req, res, next) => {
 
   if (errors) {
     res.statusCode = 500;
-    return res.json({ status: false, errors: errors.map((error) => error.msg) });
+    return res.json({ success: false, errors: errors.map((error) => error.msg) });
   }
 
   const user = new User({
@@ -97,7 +97,7 @@ exports.postSignup = (req, res, next) => {
     if (existingUser) {
       let errors = [];
       errors.push('User already exists.');
-      return res.json({ status: false, errors: errors })
+      return res.json({ success: false, errors: errors })
     }
     user.save((err) => {
       if (err) { return next(err); }
@@ -106,7 +106,7 @@ exports.postSignup = (req, res, next) => {
                       expiresIn: 10080
                     });
       res.statusCode = 200;
-      return res.json({ status: true, msg: 'You have successfully registered.', token: 'JWT ' + jwtToken });
+      return res.json({ success: true, message: 'You have successfully registered.', data: { token: 'JWT ' + jwtToken } });
     });
   });
 };

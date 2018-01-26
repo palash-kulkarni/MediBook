@@ -47,7 +47,8 @@ exports.isAuthenticated = (req, res, next) => {
   if (passport.authenticate('jwt', { session: false })) {
     return next();
   }
-  return res.json({ status: 401, msg: 'Invalid authentication token.' });
+  res.statusCode = 401;
+  return res.json({ status: false, message: 'Invalid authentication token.' });
 };
 
 /**
